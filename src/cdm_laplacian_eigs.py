@@ -26,12 +26,12 @@ def gen_choices_from_rank(order):
 
 def gen_CDM_ranking(U):
 	order = []
-	vec = np.ones(U.shape[0], dtype=np.bool)
-	for idx in range(U.shape[0]-1):
-		p = np.exp(U[:,vec][vec,:].sum(-1))
-		p /= p.sum()
+	vec = np.ones(U.shape[0], dtype=bool)	# creating booolean vector filled with TRUE of length (nrow(U))
+	for idx in range(U.shape[0]-1):		
+		p = np.exp(U[:,vec][vec,:].sum(-1))	# p = vector containing exp(sum of values in column) for each column
+		p /= p.sum()				# dividing each entry by sum of entries, which gives vector of CRS probabilities
 		order.append(vec.nonzero()[0][np.random.choice(len(p),p=p)])
-		vec[order[-1]] = 0
+		vec[order[-1]] = 0			# removing the entry that was just placed in order from U
 	order.append(vec.nonzero()[0][0])
 
 	return np.array(order)
@@ -69,11 +69,21 @@ def vectorize(U):
     u=np.array([U[i,j] for i in range(n) for j in range(n) if i!=j])
     return (u-u.mean())
 
+
+# Generating parameter values and datasets
+# note d = dimension of latent representation, if using
 def gen_datasets(n=6, num_rankings=1000, num_datasets=20, B=1.5, theta=None, d=None, random_state=8080):
+	
+	# using Plackett-Luce "scores" to generate matrix U for CRS
 	if theta is not None:
 		theta = np.array(theta)
-		theta -= theta.mean()
-		U = -np.ones([n,1]).dot(theta); np.fill_diagonal(U,0); 
+		theta -= theta.mean()		# subtracting mean from each theta value
+		U = -np.ones([n,1]).dot(theta)  # U = dot product between n-dim vector filled with -1 and theta values
+		np.fill_diagonal(U,0)    # making diagonal equal 0
+		# output is an n x n matrix with the ith column containing -theta_i in every entry
+		# except diagonal which is 0
+
+	# generating parameters in factorised form	
 	elif d is not None:
 		T = truncnorm.rvs(-B, B, loc=0, scale=1, size=(n,d), random_state=random_state)
 		C = truncnorm.rvs(-B, B, loc=0, scale=1, size=(n,d), random_state=random_state)
@@ -83,9 +93,14 @@ def gen_datasets(n=6, num_rankings=1000, num_datasets=20, B=1.5, theta=None, d=N
 
 		np.fill_diagonal(U,0); U -= U.sum()/(n*(n-1)); np.fill_diagonal(U,0)
 
+
+	# generating paramaters in full form
 	else:
-		U = truncnorm.rvs(-B, B, loc=0, scale=1, size=(n,n), random_state=random_state)
-		np.fill_diagonal(U,0); U /= n-1; U -= U.sum()/(n*(n-1)); np.fill_diagonal(U,0)
+		U = truncnorm.rvs(-B, B, loc=0, scale=1, size=(n,n), random_state=random_state)	 # n x n matrix of random samples from N(0,1)
+		np.fill_diagonal(U,0)	# making all diagonal entries = 0
+		U /= n-1		# dividing all entries by n-1
+		U -= U.sum()/(n*(n-1))	# subtracting mean entry value/(n-1) from all entries
+		np.fill_diagonal(U,0)	# making all diagonal entries = 0
 	
 	print(f'U: {U}')
 	
